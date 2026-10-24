@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- Background Squircle Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14141a"/>
+      <stop offset="100%" stop-color="#08080c"/>
+    </linearGradient>
+
+    <!-- Glass Rim Highlight -->
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.45)"/>
+      <stop offset="50%" stop-color="rgba(255,255,255,0.15)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.04)"/>
+    </linearGradient>
+
+    <!-- Notch Island Pill Gradient (Pure White Tint) -->
+    <linearGradient id="pillGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#242430"/>
+      <stop offset="100%" stop-color="#0e0e14"/>
+    </linearGradient>
+
+    <!-- White Ambient Glow -->
+    <radialGradient id="whiteGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.32)"/>
+      <stop offset="60%" stop-color="rgba(255,255,255,0.08)"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.9"/>
+    </filter>
+
+    <filter id="pillShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.95"/>
+    </filter>
+
+    <filter id="whiteNeon" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#ffffff" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Ambient White Glow Behind Icon -->
+  <circle cx="128" cy="128" r="95" fill="url(#whiteGlow)" opacity="0.8"/>
+
+  <!-- Squircle Base (Apple style rounded rect) -->
+  <rect x="18" y="18" width="220" height="220" rx="52" fill="url(#bgGrad)" filter="url(#dropShadow)"/>
+  <rect x="18" y="18" width="220" height="220" rx="52" fill="none" stroke="url(#rimGrad)" stroke-width="2"/>
+
+  <!-- Frosted Glass Specular Sheen (top-left arc) -->
+  <path d="M 22 70 A 52 52 0 0 1 70 22 L 186 22 A 52 52 0 0 0 22 186 Z" fill="rgba(255,255,255,0.04)"/>
+
+  <!-- Floating Dynamic Island Notch (Centerpiece - PURE WHITE ACCENTS) -->
+  <!-- Outer Pill White Glow -->
+  <rect x="42" y="104" width="172" height="48" rx="24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" filter="url(#whiteNeon)"/>
+
+  <!-- Main Notch Pill -->
+  <rect x="44" y="106" width="168" height="44" rx="22" fill="url(#pillGrad)" filter="url(#pillShadow)"/>
+  <rect x="44" y="106" width="168" height="44" rx="22" fill="none" stroke="#ffffff" stroke-width="1.6"/>
+
+  <!-- Sensor Ring & Glowing White Camera Dot -->
+  <circle cx="70" cy="128" r="8.5" fill="#08080c" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+  <circle cx="70" cy="128" r="4" fill="#ffffff" filter="url(#whiteNeon)"/>
+
+  <!-- Dynamic Sound Wave Bars (Right side of notch - ALL WHITE) -->
+  <g fill="none" stroke-linecap="round">
+    <line x1="164" y1="123" x2="164" y2="133" stroke="#ffffff" stroke-width="2.5" opacity="0.9"/>
+    <line x1="171" y1="116" x2="171" y2="140" stroke="#ffffff" stroke-width="2.5"/>
+    <line x1="178" y1="120" x2="178" y2="136" stroke="#ffffff" stroke-width="2.5"/>
+    <line x1="185" y1="124" x2="185" y2="132" stroke="#ffffff" stroke-width="2.5" opacity="0.85"/>
+  </g>
+
+  <!-- Sleek Center Pill Track / Accent (White) -->
+  <line x1="94" y1="128" x2="148" y2="128" stroke="rgba(255,255,255,0.2)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="94" y1="128" x2="126" y2="128" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.95"/>
+
+  <!-- Subtle Windows Accent Branding at the Bottom (Pure White Monochrome) -->
+  <g transform="translate(116, 186) scale(0.65)" opacity="0.55">
+    <rect x="0" y="0" width="15" height="15" rx="2" fill="#ffffff"/>
+    <rect x="19" y="0" width="15" height="15" rx="2" fill="#ffffff"/>
+    <rect x="0" y="19" width="15" height="15" rx="2" fill="#ffffff"/>
+    <rect x="19" y="19" width="15" height="15" rx="2" fill="#ffffff"/>
+  </g>
+</svg>

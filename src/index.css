@@ -1,0 +1,475 @@
+:root {
+  --bg-notch:        #050505;
+  --bg-glass:        rgba(13, 13, 20, 0.76);
+  --bg-glass-card:   rgba(255, 255, 255, 0.05);
+  --border-glass:    rgba(255, 255, 255, 0.12);
+  --border-glass-hi: rgba(255, 255, 255, 0.22);
+  --text-1:          #f5f5f7;
+  --text-2:          #8e8e93;
+  --text-3:          #545458;
+  --green:           #30d158;
+  --cyan:            #64d2ff;
+  --orange:          #ff9f0a;
+  --red:             #ff453a;
+  --purple:          #bf5af2;
+  --yellow:          #ffd60a;
+  --blue:            #0a84ff;
+  --spring:          cubic-bezier(0.16, 1, 0.3, 1);
+  --bounce:          cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0; padding: 0;
+  user-select: none; -webkit-user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text-1);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+/* ── Top edge hover trigger zone & Indicator Bar ── */
+.notch-trigger-zone {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 160px;
+  height: 6px;
+  z-index: 100;
+  pointer-events: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+/* Garis penanda notch saat tersembunyi: Elegan & modern seperti iOS bar indicator */
+.notch-indicator-bar {
+  width: 64px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 0 0 3px 3px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5), 0 0 6px rgba(255, 255, 255, 0.2);
+  transition: width 0.22s var(--spring), height 0.22s var(--spring), background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.notch-hitbox:hover .notch-indicator-bar,
+.notch-trigger-zone:hover .notch-indicator-bar {
+  width: 92px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7), 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* ── Notch wrapper & Hitbox ─────────────────────────────────── */
+.notch-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Single Hitbox Container */
+.notch-hitbox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  pointer-events: auto;
+  padding-bottom: 4px;
+}
+
+/* Saat notch sedang tersembunyi: sesuaikan dengan tinggi garis penanda */
+.notch-hitbox.is-hidden-hitbox {
+  padding-bottom: 0 !important;
+  height: 6px !important;
+  overflow: visible;
+}
+
+
+/* ── Glassmorphism Notch Island ── */
+.notch-island {
+  position: relative;
+  background: var(--bg-glass);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid var(--border-glass);
+  border-top: none;
+  box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  pointer-events: auto;
+  cursor: pointer;
+  overflow: hidden;
+  will-change: width, height, transform, border-radius;
+  transition: width 0.38s var(--spring),
+              height 0.38s var(--spring),
+              transform 0.32s var(--spring),
+              border-radius 0.28s var(--spring),
+              opacity 0.24s ease,
+              box-shadow 0.28s ease;
+  transform-origin: top center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* Corner wings ── */
+.notch-island::before,
+.notch-island::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.notch-island::before { left: -14px;  background: radial-gradient(circle at 0 100%, transparent 14px, rgba(13, 13, 20, 0.76) 15px); }
+.notch-island::after  { right: -14px; background: radial-gradient(circle at 100% 100%, transparent 14px, rgba(13, 13, 20, 0.76) 15px); }
+
+/* ── Size states: DYNAMIC HEIGHT to fit content without wasted space ── */
+.state-minimal {
+  width: 130px;
+  height: 5px;
+  padding: 0;
+  border-radius: 0 0 4px 4px;
+}
+.state-minimal:hover {
+  height: 32px;
+  border-radius: 0 0 16px 16px;
+}
+
+.state-idle {
+  width: 250px;
+  height: 35px;
+  padding: 0 14px;
+  border-radius: 0 0 18px 18px;
+  justify-content: center;
+}
+
+.state-idle-player {
+  width: 295px !important;
+  height: 36px !important;
+}
+
+.state-media {
+  width: 310px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 0 0 20px 20px;
+  justify-content: center;
+}
+
+.state-hud {
+  width: 280px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 0 0 20px 20px;
+  justify-content: center;
+}
+
+.state-mascot {
+  width: 130px;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 0 0 22px 22px;
+  justify-content: center;
+}
+
+/* Dynamic size expanded states */
+.state-expanded {
+  width: 460px;
+  padding: 12px 14px;
+  border-radius: 0 0 26px 26px;
+  cursor: default;
+  align-items: stretch;
+}
+
+/* Height presets tailored per content tab */
+.expanded-h-music        { height: 165px; }
+.expanded-h-music-lyrics { height: 290px; }
+.expanded-h-focus        { height: 248px; }
+.expanded-h-prayer       { height: 200px; }
+.expanded-h-system       { height: 175px; }
+.expanded-h-shelf        { height: 195px; }
+.expanded-h-settings     { height: 260px; }
+
+/* ── Auto-hidden state: FULLY invisible, hanya trigger zone yg aktif ── */
+.notch-island.is-autohidden {
+  transform: translateY(-100%) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: transform 0.4s var(--spring), opacity 0.3s ease !important;
+}
+/* Saat reveal (is-autohidden dihapus): notch slide DOWN dengan mulus */
+.notch-island:not(.is-autohidden) {
+  transition: width 0.38s var(--spring),
+              height 0.38s var(--spring),
+              transform 0.40s var(--spring),
+              border-radius 0.28s var(--spring),
+              opacity 0.28s ease,
+              box-shadow 0.28s ease;
+}
+
+/* Fullscreen hide */
+.is-fullscreen-hidden {
+  transform: translateY(-100%) !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Subtle charging glow */
+.charging-glow {
+  border-color: rgba(48, 209, 88, 0.45) !important;
+  box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.75), 0 0 16px rgba(48, 209, 88, 0.3) !important;
+}
+
+/* ── Smooth content cross-fade wrapper ── */
+.notch-content-fade {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: notchFadeIn 0.20s var(--spring) forwards;
+}
+
+@keyframes notchFadeIn {
+  0%   { opacity: 0; transform: scale(0.97) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── HUD Slide-in animation ─────────────────────────────────── */
+@keyframes hudSlideIn {
+  0%   { opacity: 0; transform: translateY(-6px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* ── Audio wave ─────────────────────────────────────────────── */
+.audio-wave {
+  display: flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 14px;
+}
+.audio-bar {
+  width: 2.5px;
+  background: linear-gradient(180deg, #30d158, #1a7a34);
+  border-radius: 2px;
+  animation: wavePulse 0.9s ease-in-out infinite alternate;
+}
+.audio-bar:nth-child(1) { height: 5px;  animation-delay: 0s; }
+.audio-bar:nth-child(2) { height: 12px; animation-delay: 0.2s; }
+.audio-bar:nth-child(3) { height: 7px;  animation-delay: 0.1s; }
+.audio-bar:nth-child(4) { height: 14px; animation-delay: 0.3s; }
+.audio-bar:nth-child(5) { height: 6px;  animation-delay: 0.15s; }
+.audio-bar.paused { animation: none; height: 4px !important; opacity: 0.4; }
+@keyframes wavePulse { 0% { transform: scaleY(0.25); } 100% { transform: scaleY(1); } }
+
+/* ── Progress bar ───────────────────────────────────────────── */
+.progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--purple));
+  border-radius: 3px;
+  transition: width 0.15s linear;
+}
+
+/* ── Volume Slider ──────────────────────────────────────────── */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 75px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.volume-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn {
+  background: transparent;
+  border: none;
+  color: var(--text-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  padding: 5px;
+}
+.btn:hover  { background: rgba(255, 255, 255, 0.10); transform: scale(1.06); }
+.btn:active { transform: scale(0.94); }
+.btn.primary { background: #fff; color: #000; padding: 7px; }
+.btn.primary:hover { background: #e5e5e7; }
+
+/* ── Tab bar ────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  gap: 3px;
+  border-bottom: 1px solid var(--border-glass);
+  padding-bottom: 5px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+.tab-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+.tab-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-1); }
+.tab-btn.active { background: rgba(255, 255, 255, 0.14); color: #fff; }
+
+/* ── Synced Lyrics (Karaoke Glow Highlight) ─────────────────── */
+.lyrics-container {
+  overflow-y: auto;
+  max-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 2px;
+  scroll-behavior: smooth;
+}
+.lyric-line {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.28);
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s var(--spring);
+  transform: scale(0.96);
+}
+.lyric-line:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.04);
+}
+.lyric-line.active {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 12.5px !important;
+  transform: scale(1.03) !important;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 16px rgba(100, 210, 255, 0.22);
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* ── Mascot eyes ────────────────────────────────────────────── */
+.eye-container {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+.eye {
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+  transition: transform 0.08s ease;
+}
+.eye.blink { animation: blink 0.12s ease-in-out; }
+@keyframes blink { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.08); } }
+.pupil {
+  width: 8px;
+  height: 8px;
+  background: #000;
+  border-radius: 50%;
+  transition: transform 0.06s ease;
+}
+
+/* ── Water bar ──────────────────────────────────────────────── */
+.water-bar-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.water-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), #0a84ff);
+  border-radius: 4px;
+  transition: width 0.5s var(--spring);
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 2px; }
+
+/* ── Spin animation (untuk loading icon) ──────────────────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.spin { animation: spin 1s linear infinite; }
+
+/* ── Input focus ring ──────────────────────────────────────── */
+input:focus {
+  outline: 1px solid rgba(100, 210, 255, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(100, 210, 255, 0.08);
+}
+
