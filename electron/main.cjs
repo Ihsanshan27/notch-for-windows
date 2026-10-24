@@ -287,7 +287,12 @@ ipcMain.on('adjust-volume', (_, delta) => {
 // ─── Hardware HUD Watcher (CapsLock & Master Volume) ──────────────────────────
 let hwWatcher = null;
 function startHardwareWatcher() {
-  const scriptPath = path.join(__dirname, 'hardwareWatcher.ps1');
+  // Dukung unpack asar saat aplikasi di-build menjadi installer .exe
+  let scriptPath = path.join(__dirname, 'hardwareWatcher.ps1');
+  if (scriptPath.includes('app.asar')) {
+    const unpacked = scriptPath.replace('app.asar', 'app.asar.unpacked');
+    if (fs.existsSync(unpacked)) scriptPath = unpacked;
+  }
   if (!fs.existsSync(scriptPath)) return;
 
   try {
