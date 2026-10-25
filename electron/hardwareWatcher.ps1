@@ -67,6 +67,7 @@ try {
     [Console]::WriteLine("READY:CAPS=" + $prevCaps + ",VOL=" + $prevVol + ",MUTE=" + $prevMute)
 } catch {}
 
+$iterCount = 0
 while ($true) {
     try {
         $c = [System.Windows.Forms.Control]::IsKeyLocked([System.Windows.Forms.Keys]::CapsLock)
@@ -82,7 +83,13 @@ while ($true) {
             $prevMute = $m
             [Console]::WriteLine("VOL:" + $v + ":" + $m)
         }
+
+        $iterCount++
+        if ($iterCount -ge 400) {
+            $iterCount = 0
+            [GC]::Collect()
+        }
     } catch {}
 
-    Start-Sleep -Milliseconds 85
+    Start-Sleep -Milliseconds 125
 }

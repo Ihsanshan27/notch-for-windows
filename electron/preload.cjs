@@ -33,7 +33,9 @@ contextBridge.exposeInMainWorld('notchAPI', {
     return () => ipcRenderer.removeListener('fullscreen-change', h);
   },
 
-  // System metrics
+  // System metrics (On-demand)
+  startSystemMonitor: () => ipcRenderer.send('start-system-monitor'),
+  stopSystemMonitor:  () => ipcRenderer.send('stop-system-monitor'),
   onSystemMetrics: (cb) => {
     const h = (_e, d) => cb(d);
     ipcRenderer.on('system-metrics', h);

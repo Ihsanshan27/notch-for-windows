@@ -221,6 +221,20 @@ export default function App() {
     });
   }, [mode, activeTab, showLyrics, idleMode, isAutoHidden]);
 
+  // ── On-Demand System Telemetry (Deep Sleep saat mode jam) ───────────────────
+  // HANYA jalankan polling CPU/RAM/Net saat user membuka tab System!
+  // Menghemat alokasi memori dan menekan konsumsi CPU hingga 0% saat idle jam.
+  useEffect(() => {
+    if (mode === 'expanded' && activeTab === 'system') {
+      window.notchAPI?.startSystemMonitor();
+    } else {
+      window.notchAPI?.stopSystemMonitor();
+    }
+    return () => {
+      window.notchAPI?.stopSystemMonitor();
+    };
+  }, [mode, activeTab]);
+
   // ── HUD trigger (Auto-reveals notch even when auto-hidden) ──────────────────
   const triggerHUD = useCallback((ev) => {
     // 1. Reveal notch seketika jika notch sedang auto-hidden

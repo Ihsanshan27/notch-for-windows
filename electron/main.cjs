@@ -5,11 +5,18 @@ const { spawn } = require('child_process');
 const { sendMediaKey, queryWindowsSMTC } = require('./mediaController.cjs');
 const { getCpuAndRam, getNetworkSpeed } = require('./systemMonitor.cjs');
 
-// ─── Optimizations ───────────────────────────────────────────────────────────
+// ─── Memory & Performance Optimizations ──────────────────────────────────────
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disk-cache-size', '1');      // minimise disk cache
 app.commandLine.appendSwitch('media-cache-size', '1');
+// Matikan spare renderer process yang memakan ~30MB RAM tanpa guna
+app.commandLine.appendSwitch('disable-features', 'SpareRendererProcessHost,CalculateNativeWinOcclusion');
+app.commandLine.appendSwitch('disable-background-networking');
+app.commandLine.appendSwitch('disable-sync');
+app.commandLine.appendSwitch('disable-breakpad');
+// Batasi max heap size V8 engine agar garbage collection lebih agresif dan hemat RAM
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=96');
 
 // ─── Single Instance Lock ────────────────────────────────────────────────────
 // Hanya enforce di production; dev mode tidak perlu karena sering restart
@@ -193,7 +200,7 @@ function createWindow() {
   }
 
   // ── Timers ────────────────────────────────────────────────────────────────
-  // Media SMTC poll (setiap 3.5 detik, ringan)
+  // Media SMTC poll (setiap 3.5 detik, sangat ringan)
   mediaPollTimer = setInterval(() => {
     if (!mainWindow?.isDestroyed()) {
       queryWindowsSMTC((d) => {
@@ -201,16 +208,7 @@ function createWindow() {
       });
     }
   }, 3500);
-
-  // System metrics (CPU, RAM, Net) - polling santai 3 detik
-  systemMetricsTimer = setInterval(async () => {
-    if (!mainWindow?.isDestroyed()) {
-      try {
-        const metrics = await getCpuAndRam();
-        mainWindow.webContents.send('system-metrics', metrics);
-      } catch {}
-    }
-  }, 3000);
+  // System metrics timer sekarang ON-DEMAND (hanya jalan saat tab System aktif)
 }
 
 // ─── Tray ─────────────────────────────────────────────────────────────────────
@@ -271,7 +269,40 @@ ipcMain.on('set-open-at-login', (_, v) => {
   app.setLoginItemSettings({ openAtLogin: v, path: process.execPath, args: [] });
   saveSettings({ openAtLogin: v });
 });
-ipcMain.on('quit-app', () => app.quit());
+ipcMain.on('quit-app', () => {
+  stopSystemMonitoring();
+  app.quit();
+});
+
+// ─── On-Demand System Telemetry ──────────────────────────────────────────────
+function startSystemMonitoring() {
+  if (systemMetricsTimer) return;
+  // Kirim metrik awal seketika saat tab dibuka
+  getCpuAndRam().then(metrics => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('system-metrics', metrics);
+    }
+  }).catch(() => {});
+
+  systemMetricsTimer = setInterval(async () => {
+    if (!mainWindow?.isDestroyed()) {
+      try {
+        const metrics = await getCpuAndRam();
+        mainWindow.webContents.send('system-metrics', metrics);
+      } catch {}
+    }
+  }, 2500);
+}
+
+function stopSystemMonitoring() {
+  if (systemMetricsTimer) {
+    clearInterval(systemMetricsTimer);
+    systemMetricsTimer = null;
+  }
+}
+
+ipcMain.on('start-system-monitor', () => startSystemMonitoring());
+ipcMain.on('stop-system-monitor', () => stopSystemMonitoring());
 
 // Handler pengaturan volume dari UI Notch (tidak membajak tombol keyboard fisik)
 ipcMain.on('adjust-volume', (_, delta) => {
