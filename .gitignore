@@ -8,6 +8,7 @@ dist/
 dist-electron/
 release/
 out/
+src-tauri/target/
 
 # Environment and sensitive local files
 .env
