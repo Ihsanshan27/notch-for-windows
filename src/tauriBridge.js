@@ -2,24 +2,23 @@
 // Memungkinkan seluruh komponen React berjalan 100% identik baik di Electron maupun di Tauri
 if (typeof window !== 'undefined' && !window.notchAPI) {
   window.notchAPI = {
-    setIgnoreMouseEvents: (ignore, options) => {
-      // Tauri cursor passthrough
-      try {
-        if (window.__TAURI_INTERNALS__) {
-          import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-            getCurrentWindow().setIgnoreCursorEvents(ignore);
-          }).catch(() => {});
-        }
-      } catch {}
+    setIgnoreMouseEvents: (_ignore, _options) => {
+      // PENTING: Di Windows, setIgnoreCursorEvents(true) memasang gaya WS_EX_TRANSPARENT
+      // yang menyebabkan seluruh event hover (mouseenter/mousemove) mati total!
+      // Karena jendela Tauri ukurannya dinamis pas dengan notch (280x48 saat jam),
+      // area di luar notch 100% tembus klik secara native OS tanpa mematikan cursor events.
     },
     updateWindowBounds: (bounds) => {
       try {
         if (window.__TAURI_INTERNALS__) {
-          import('@tauri-apps/api/window').then(({ getCurrentWindow, LogicalSize, LogicalPosition }) => {
-            const win = getCurrentWindow();
-            const W = bounds.mode === 'expanded' ? 490 : (bounds.idleMode === 'player' ? 330 : 280);
-            const H = bounds.mode === 'expanded' ? 260 : 48;
-            win.setSize(new LogicalSize(W, H));
+          import('@tauri-apps/api/core').then(({ invoke }) => {
+            invoke('update_window_bounds', {
+              mode: bounds.mode || 'idle',
+              tab: bounds.tab || null,
+              lyrics: Boolean(bounds.lyrics),
+              idleMode: bounds.idleMode || 'clock',
+              isAutoHidden: Boolean(bounds.isAutoHidden),
+            });
           }).catch(() => {});
         }
       } catch {}

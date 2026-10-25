@@ -16,8 +16,6 @@
         "label": "main",
         "width": 280,
         "height": 48,
-        "x": 820,
-        "y": 0,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
