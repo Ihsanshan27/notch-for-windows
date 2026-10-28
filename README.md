@@ -17,6 +17,34 @@
   <img src="https://img.shields.io/badge/License-ISC-green" alt="License" />
 </p>
 
+<p align="center">
+  <img src="preview-img/prev-main.png" alt="SNOTCH Main Desktop View" width="460" style="border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.15);" />
+</p>
+
+---
+
+## 📸 Galeri Tampilan & Fitur
+
+| 🎵 Musik & Scrubber | 📅 Kalender & Agenda |
+| :---: | :---: |
+| <img src="preview-img/prev-musik.png" width="390" alt="Tab Musik SNOTCH" /> | <img src="preview-img/prev-kalender.png" width="390" alt="Tab Kalender SNOTCH" /> |
+
+| 🍅 Fokus: Pomodoro Timer | 💧 Fokus: Pengingat Air Minum |
+| :---: | :---: |
+| <img src="preview-img/prev-fokus-podo.png" width="390" alt="Tab Pomodoro Timer" /> | <img src="preview-img/prev-fokus-airminum.png" width="390" alt="Tab Air Minum" /> |
+
+| 📝 Fokus: To-Do List | 🕌 Jadwal Sholat & Countdown |
+| :---: | :---: |
+| <img src="preview-img/prev-fokus-todo.png" width="390" alt="Tab To-Do List" /> | <img src="preview-img/prev-sholat.png" width="390" alt="Tab Jadwal Sholat" /> |
+
+| ⛅ Prakiraan Cuaca | 📁 File Shelf Multitasking |
+| :---: | :---: |
+| <img src="preview-img/prev-cuaca.png" width="390" alt="Tab Cuaca" /> | <img src="preview-img/prev-shelf.png" width="390" alt="Tab File Shelf" /> |
+
+| ⚙️ Pengaturan, Tema & Surface |
+| :---: |
+| <img src="preview-img/prev-setting.png" width="480" alt="Panel Pengaturan SNOTCH" /> |
+
 ---
 
 ## ✨ Fitur Utama
@@ -34,7 +62,7 @@
 ### 3. 🚀 Expanded Hub (Pusat Produktivitas Terpadu)
 Arahkan kursor atau klik notch untuk membuka hub lengkap dengan tab navigasi:
 - 🎵 **Musik, Seekbar Interaktif & Live Karaoke Lyrics**:
-  - Sinkronisasi real-time Windows SMTC (Spotify, YouTube, browser, media player) tanpa lag dan tanpa jitter.
+  - Sinkronisasi real-time Windows SMTC (Spotify, YouTube, browser, media player) tanpa jeda (*zero-delay*).
   - Seekbar interaktif: mendukung **klik** dan **drag/scrubbing** dengan live timestamp preview.
   - Karaoke live lyrics dengan penyorotan kalimat aktif dan fitur klik lirik untuk langsung melompatkan musik ke detik tersebut.
 - 🍅 **Produktivitas & Fokus**:
@@ -121,6 +149,17 @@ Arahkan kursor atau klik notch untuk membuka hub lengkap dengan tab navigasi:
 
 ```text
 notch-for-windows/
+├── preview-img/              # Screenshot & asset preview dokumentasi
+│   ├── prev-main.png         # Tampilan desktop notch
+│   ├── prev-musik.png        # Tampilan media player & live lyrics
+│   ├── prev-fokus-podo.png   # Tampilan Pomodoro timer
+│   ├── prev-fokus-airminum.png # Tampilan pengingat air minum
+│   ├── prev-fokus-todo.png   # Tampilan to-do list
+│   ├── prev-sholat.png       # Tampilan jadwal sholat
+│   ├── prev-cuaca.png        # Tampilan prakiraan cuaca
+│   ├── prev-kalender.png     # Tampilan kalender & agenda
+│   ├── prev-shelf.png        # Tampilan file shelf
+│   └── prev-setting.png      # Tampilan pengaturan & tema
 ├── src-tauri/
 │   ├── src/lib.rs            # Rust backend (Win32 Core Audio, WinRT SMTC seek & controls, CapsLock, Tray)
 │   ├── tauri.conf.json       # Konfigurasi Tauri v2 (window bounds, transparent, app id SNOTCH)
