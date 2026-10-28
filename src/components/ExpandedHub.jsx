@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Music, Flame, Compass, CloudSun, Sliders, Folder,
   Pin, PinOff, Settings, X,
@@ -36,6 +36,43 @@ export default function ExpandedHub({
 }) {
   const isPlaying = media?.status === 'Playing';
   const [now, setNow] = useState(new Date());
+
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubPct, setScrubPct] = useState(0);
+  const trackRef = useRef(null);
+
+  const calcPct = (clientX) => {
+    if (!trackRef.current) return 0;
+    const rect = trackRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  };
+
+  const handlePointerDown = (e) => {
+    e.preventDefault();
+    setIsScrubbing(true);
+    const p = calcPct(e.clientX);
+    setScrubPct(p);
+
+    const onPointerMove = (moveEv) => {
+      setScrubPct(calcPct(moveEv.clientX));
+    };
+
+    const onPointerUp = (upEv) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      setIsScrubbing(false);
+      const finalPct = calcPct(upEv.clientX);
+      onSeek?.(finalPct * trackDuration);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
+  const displayProgress = isScrubbing ? scrubPct * 100 : progress;
+  const displaySec = isScrubbing ? scrubPct * trackDuration : progressSec;
+  const remainingSec = Math.max(0, trackDuration - displaySec);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -179,12 +216,19 @@ export default function ExpandedHub({
 
           {/* Progress bar + Time row */}
           <div>
-            <div className="progress-track" onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-              onSeek?.(pct * trackDuration);
-            }}>
-              <div className="progress-fill" style={{ width: `${progress}%` }} />
+            <div
+              ref={trackRef}
+              className="progress-track"
+              onPointerDown={handlePointerDown}
+              title="Klik atau geser untuk seek musik"
+            >
+              <div
+                className="progress-fill"
+                style={{
+                  width: `${displayProgress}%`,
+                  transition: isScrubbing ? 'none' : 'width 0.15s linear'
+                }}
+              />
             </div>
 
             {/* Elapsed / Remaining time */}
@@ -193,10 +237,10 @@ export default function ExpandedHub({
               marginTop: 3, padding: '0 2px',
             }}>
               <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' }}>
-                {fmt(progressSec)}
+                {fmt(displaySec)}
               </span>
               <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' }}>
-                −{fmt(trackDuration - progressSec)}
+                −{fmt(remainingSec)}
               </span>
             </div>
           </div>

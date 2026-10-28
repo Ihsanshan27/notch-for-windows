@@ -196,6 +196,10 @@ if (typeof window !== 'undefined' && !window.notchAPI) {
       if (!isTauri) return;
       getCore().then(({ invoke }) => invoke('send_media_key', { key }).catch(() => {})).catch(() => {});
     },
+    seekMedia:      (positionMs) => {
+      if (!isTauri) return Promise.resolve(false);
+      return getCore().then(({ invoke }) => invoke('seek_media', { positionMs: Math.round(positionMs) }).catch(() => false));
+    },
     runQuickAction: (action) => {
       if (!isTauri) return;
       getCore().then(({ invoke }) => invoke('run_quick_action', { action }).catch(() => {})).catch(() => {});
