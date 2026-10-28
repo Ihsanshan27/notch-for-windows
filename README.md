@@ -1,7 +1,7 @@
 # 🪟 Windows Dynamic Notch
 
 <p align="center">
-  <img src="electron/icon.png" width="96" height="96" alt="Windows Dynamic Notch Logo" />
+  <img src="src-tauri/icons/icon.png" width="96" height="96" alt="Windows Dynamic Notch Logo" />
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?logo=windows&logoColor=white" alt="Windows" />
-  <img src="https://img.shields.io/badge/Framework-Electron%2030+-47848F?logo=electron&logoColor=white" alt="Electron" />
+  <img src="https://img.shields.io/badge/Framework-Tauri%20v2%20%2B%20Rust-FFC131?logo=tauri&logoColor=black" alt="Tauri" />
   <img src="https://img.shields.io/badge/Frontend-React%2019%20%2B%20Vite-61DAFB?logo=react&logoColor=black" alt="React" />
   <img src="https://img.shields.io/badge/Styling-Vanilla%20Glassmorphism-purple" alt="CSS" />
   <img src="https://img.shields.io/badge/License-ISC-green" alt="License" />
@@ -60,10 +60,10 @@ Arahkan kursor atau klik notch untuk membuka hub lengkap dengan tab navigasi:
 
 | Komponen | Teknologi | Keterangan |
 | :--- | :--- | :--- |
-| **Desktop Wrapper** | [Electron](https://www.electronjs.org/) | Frameless, transparent, always-on-top window dengan IPC bridge aman. |
+| **Desktop Runtime** | [Tauri v2](https://tauri.app/) (Rust) | Frameless, transparent, ultra-ringan (~25-40MB RAM), native WebView2. |
 | **Frontend UI** | [React 19](https://react.dev/) + [Vite](https://vitejs.dev/) | Reactivity tinggi dengan HMR super cepat dan Lucide Icons. |
 | **Styling** | Vanilla CSS Glassmorphism | Backdrop-filter blur 24px, spring physics cubic-bezier, dan border glow halus. |
-| **Windows Integration** | PowerShell Background Watcher | Deteksi hardware event (Master Volume changes, CapsLock toggle, SMTC media session). |
+| **Windows Integration** | Native Win32 & WinRT Rust | Deteksi hardware event instan (Core Audio Master Volume, CapsLock hook, WinRT SMTC media session). |
 | **Audio Notification** | Web Audio API Oscillator | Chime pengingat lembut sintetis tanpa memerlukan aset file audio eksternal. |
 
 ---
@@ -105,14 +105,10 @@ Arahkan kursor atau klik notch untuk membuka hub lengkap dengan tab navigasi:
 
 ```text
 notch-for-windows/
-├── electron/
-│   ├── main.cjs              # Electron main process (window lifecycle, dynamic bounds, IPC)
-│   ├── preload.cjs           # Secure IPC bridge (contextBridge)
-│   ├── hardwareWatcher.ps1   # PowerShell hardware event listener (Volume & CapsLock)
-│   ├── mediaController.cjs   # Integrasi Windows SMTC media playback
-│   ├── systemMonitor.cjs     # CPU, RAM, & Network telemetry
-│   ├── icon.png              # Monochrome white app icon
-│   └── tray-icon.png         # Monochrome white tray icon
+├── src-tauri/
+│   ├── src/lib.rs            # Rust backend (Win32 Core Audio, WinRT SMTC, CapsLock, Tray)
+│   ├── tauri.conf.json       # Konfigurasi window Tauri (transparan, frameless, bounds)
+│   └── Cargo.toml            # Dependensi Rust (sysinfo, windows crate)
 ├── src/
 │   ├── components/
 │   │   ├── IdlePill.jsx      # Compact island pill (Clock & Mini-Player)

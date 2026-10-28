@@ -1,24 +1,24 @@
 {
   "name": "notch-for-windows",
   "version": "1.0.0",
-  "description": "",
-  "main": "electron/main.cjs",
+  "description": "Windows Dynamic Notch - Native Tauri App",
   "scripts": {
-    "predev": "powershell -NoProfile -Command \"Get-Process -Name electron -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 2000\" || exit 0",
-    "dev": "concurrently -k --raw \"vite\" \"wait-on --timeout 15000 tcp:5173 && electron . --dev\"",
+    "dev": "node scripts/build_tauri.cjs --dev",
+    "dev:tauri": "node scripts/build_tauri.cjs --dev",
     "dev:vite": "vite",
     "build": "vite build",
-    "prestart": "powershell -NoProfile -Command \"Get-Process -Name electron -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 2000\" || exit 0",
-    "start": "electron .",
-    "dist": "npm run build && electron-builder --win",
-    "dist:portable": "npm run build && electron-builder --win portable",
-    "dist:nsis": "npm run build && electron-builder --win nsis",
-    "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "build:app": "node scripts/build_tauri.cjs",
+    "build:tauri": "node scripts/build_tauri.cjs",
+    "tauri": "tauri"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "tauri",
+    "notch",
+    "windows",
+    "dynamic-island",
+    "react"
+  ],
+  "author": "Ihsan",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
@@ -30,51 +30,6 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4",
     "@vitejs/plugin-react": "^6.1.2",
-    "concurrently": "^10.0.6",
-    "electron": "^45.0.0",
-    "electron-builder": "^26.18.0",
-    "vite": "^8.3.5",
-    "wait-on": "^9.5.1"
-  },
-  "build": {
-    "appId": "com.ihsanshan.notchforwindows",
-    "productName": "Windows Dynamic Notch",
-    "copyright": "Copyright © 2026 Ihsan",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "package.json"
-    ],
-    "asar": true,
-    "asarUnpack": [
-      "electron/hardwareWatcher.ps1"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "electron/icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Windows Dynamic Notch"
-    }
+    "vite": "^8.3.5"
   }
 }

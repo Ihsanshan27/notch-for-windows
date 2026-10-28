@@ -27,25 +27,27 @@ function Stat({ icon, label, value, pct, color, sub }) {
 }
 
 export default function SystemMonitor({ metrics = {} }) {
-  const { cpu=0, ramUsed=0, ramTotal=0, ramPct=0, downKBs=0, upKBs=0 } = metrics;
+  // Rust emits: { cpu, ram (%), ramUsed (GB), ramTotal (GB) }
+  const { cpu = 0, ram = 0, ramUsed = 0, ramTotal = 0, downKBs = 0, upKBs = 0 } = metrics;
 
-  const fmtNet = (kb) => kb >= 1024 ? `${(kb/1024).toFixed(1)} MB/s` : `${kb} KB/s`;
+  const f1   = (v) => Number(v).toFixed(1);            // 1 desimal
+  const fNet = (kb) => kb >= 1024 ? `${(kb/1024).toFixed(1)} MB/s` : `${Number(kb).toFixed(0)} KB/s`;
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-      <div style={{ fontSize:11, fontWeight:700, marginBottom:2 }}>Sistem & Jaringan</div>
+      <div style={{ fontSize:11, fontWeight:700, marginBottom:2 }}>Sistem &amp; Jaringan</div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:5 }}>
-        <Stat icon={<Cpu size={11}/>} label="CPU" value={`${cpu}%`} pct={cpu}
+        <Stat icon={<Cpu size={11}/>} label="CPU" value={`${f1(cpu)}%`} pct={cpu}
               color={cpu>80?'var(--red)':cpu>50?'var(--orange)':'var(--cyan)'}/>
         <Stat icon={<HardDrive size={11}/>} label="RAM"
-              value={`${ramUsed}/${ramTotal}GB`} pct={ramPct}
-              color={ramPct>85?'var(--red)':ramPct>65?'var(--orange)':'var(--purple)'}
-              sub={`${ramPct}% terpakai`}/>
+              value={`${f1(ramUsed)}/${f1(ramTotal)}GB`} pct={ram}
+              color={ram>85?'var(--red)':ram>65?'var(--orange)':'var(--purple)'}
+              sub={`${f1(ram)}% terpakai`}/>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:5 }}>
-        <Stat icon={<ArrowDown size={11}/>} label="↓ Download" value={fmtNet(downKBs)}
+        <Stat icon={<ArrowDown size={11}/>} label="↓ Download" value={fNet(downKBs)}
               color="var(--green)" sub="Kecepatan turun"/>
-        <Stat icon={<ArrowUp size={11}/>} label="↑ Upload" value={fmtNet(upKBs)}
+        <Stat icon={<ArrowUp size={11}/>} label="↑ Upload" value={fNet(upKBs)}
               color="var(--cyan)" sub="Kecepatan naik"/>
       </div>
     </div>
