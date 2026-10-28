@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Music, Flame, Compass, Cpu, Folder,
+  Music, Flame, Compass, CloudSun, Sliders, Folder,
   Pin, PinOff, Settings, X,
   SkipBack, SkipForward, Play, Pause, Disc3,
   AlignLeft, Volume2, VolumeX, Volume1, Zap, Battery,
@@ -11,6 +11,12 @@ import SyncedLyrics from './SyncedLyrics';
 const DAYS_ID   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
+// Format seconds → m:ss
+const fmt = (s) => {
+  const sec = Math.max(0, Math.round(s));
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+};
+
 export default function ExpandedHub({
   activeTab, setActiveTab,
   media, onTogglePlay, onNext, onPrev,
@@ -20,6 +26,7 @@ export default function ExpandedHub({
   onOpenSettings,
   progress,          // 0-100
   progressSec,       // elapsed seconds
+  trackDuration = 240, // total track duration in seconds
   onSeek,
   volume = 65,
   onChangeVolume,
@@ -43,13 +50,14 @@ export default function ExpandedHub({
   const mon = MONTHS_ID[now.getMonth()];
 
   const TABS = [
-    { id: 'music',  label: 'Musik',  icon: Music   },
-    { id: 'produk', label: 'Fokus',  icon: Flame   },
-    { id: 'prayer', label: 'Sholat', icon: Compass },
-    { id: 'system', label: 'Sistem', icon: Cpu     },
-    { id: 'shelf',  label: 'Shelf',  icon: Folder  },
+    { id: 'music',   label: 'Musik',   icon: Music    },
+    { id: 'produk',  label: 'Fokus',   icon: Flame    },
+    { id: 'prayer',  label: 'Sholat',  icon: Compass  },
+    { id: 'weather',  label: 'Cuaca',    icon: CloudSun },
+    { id: 'calendar', label: 'Kalender', icon: Calendar },
+    { id: 'shelf',    label: 'Shelf',    icon: Folder   },
   ];
-
+  
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', gap: 4 }}>
       {/* ── Top Nav: Tabs + Controls ── */}
@@ -104,7 +112,7 @@ export default function ExpandedHub({
 
       {/* ── Content: Music Tab ── */}
       {activeTab === 'music' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+        <div key="music" className="tab-content-pane" style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
           {/* Track info + Lyric toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{
@@ -169,13 +177,28 @@ export default function ExpandedHub({
             </button>
           </div>
 
-          {/* Progress bar */}
-          <div className="progress-track" onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-            onSeek?.(pct * 240);
-          }}>
-            <div className="progress-fill" style={{ width: `${progress}%` }} />
+          {/* Progress bar + Time row */}
+          <div>
+            <div className="progress-track" onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+              onSeek?.(pct * trackDuration);
+            }}>
+              <div className="progress-fill" style={{ width: `${progress}%` }} />
+            </div>
+
+            {/* Elapsed / Remaining time */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between',
+              marginTop: 3, padding: '0 2px',
+            }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' }}>
+                {fmt(progressSec)}
+              </span>
+              <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' }}>
+                −{fmt(trackDuration - progressSec)}
+              </span>
+            </div>
           </div>
 
           {/* Controls + Volume Slider */}
@@ -243,7 +266,7 @@ export default function ExpandedHub({
 
       {/* ── Content: Non-Music Tabs ── */}
       {activeTab !== 'music' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div key={activeTab} className="tab-content-pane" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           {children}
         </div>
       )}

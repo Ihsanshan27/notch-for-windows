@@ -8,7 +8,8 @@ import PomodoroTimer, { PRESETS } from './components/PomodoroTimer.jsx';
 import WaterReminder  from './components/WaterReminder.jsx';
 import TodoList       from './components/TodoList.jsx';
 import PrayerTimes    from './components/PrayerTimes.jsx';
-import SystemMonitor  from './components/SystemMonitor.jsx';
+import WeatherWidget  from './components/WeatherWidget.jsx';
+import CalendarWidget from './components/CalendarWidget.jsx';
 import FileShelf      from './components/FileShelf.jsx';
 import MediaCompact   from './components/MediaCompact.jsx';
 
@@ -33,6 +34,8 @@ function playChime(enabled) {
 }
 
 const DEFAULT_SETTINGS = {
+  theme: 'midnight',            // 'midnight' (OLED Black #050505) | 'graphite' (Dark #2d2d2d)
+  surfaceStyle: 'glass',        // 'glass' (Glassmorphism Blur) | 'solid' (Solid Opaque)
   autoHideMode: false,          // false = Tetap Muncul (Stay), true = Sembunyi Otomatis (Auto-hide)
   autoHideFullscreen: false,
   alwaysOnTop: true,
@@ -91,6 +94,8 @@ export default function App() {
   const collapseTimerRef              = useRef(null);
   const expandHoverTimerRef           = useRef(null);
   const wakeTimerRef                  = useRef(null);
+  const windowResizeTimerRef          = useRef(null);
+  const lastRevealTimeRef             = useRef(0);
   const isHoveredRef                  = useRef(false);
 
   // ── System ────────────────────────────────────────────────────────────────
@@ -182,13 +187,27 @@ export default function App() {
     }));
   };
 
-  // ── Progress ticker for music ──────────────────────────────────────────────
-  const progressRef = useRef(null);
+  // ── High-precision Continuous Playback Clock for Music & Karaoke Lyrics ───
+  const progressRef       = useRef(null);
+  const trackDurationRef  = useRef(240); // default 4 min
+  const currentSecRef     = useRef(0);   // current precise position in seconds (float)
+  const lastWallClockRef  = useRef(Date.now()); // timestamp when currentSecRef was last ticked
+  const prevTitleRef      = useRef('');  // detect track changes
+
   useEffect(() => {
     if (media.status === 'Playing') {
+      lastWallClockRef.current = Date.now();
       progressRef.current = setInterval(() => {
-        setProgressSec(s => { const n = s + 1; setProgress(Math.min(100, (n / 240) * 100)); return n; });
-      }, 1000);
+        const now = Date.now();
+        const delta = Math.max(0, (now - lastWallClockRef.current) / 1000);
+        lastWallClockRef.current = now;
+
+        currentSecRef.current = Math.min(trackDurationRef.current, currentSecRef.current + delta);
+        const sec = currentSecRef.current;
+        const dur = trackDurationRef.current;
+        setProgressSec(sec);
+        setProgress(dur > 0 ? Math.min(100, (sec / dur) * 100) : 0);
+      }, 100); // 100ms interval for butter-smooth progress bar & sub-second synced lyrics
     } else {
       clearInterval(progressRef.current);
     }
@@ -209,23 +228,48 @@ export default function App() {
   }, [settings.notchDefaultMode, getFallbackMode]);
 
   // ── Dynamic Window Bounds Sync ─────────────────────────────────────────────
-  // Mengubah ukuran jendela Electron OS agar pas persis dengan notch saat idle (280x48) vs expanded (490xH).
-  // Menjamin area di sekitar & di bawah notch 100% tembus klik (click-through) ke aplikasi di belakangnya!
+  // Aturan resize window OS:
+  // - INSTAN: expanded, settings, hud, reveal dari auto-hidden (isAutoHidden → false)
+  // - DELAY 440ms: kembali ke idle/media (agar CSS shrink animation selesai dulu)
   useEffect(() => {
-    window.notchAPI?.updateWindowBounds({
-      mode,
-      tab: activeTab,
-      lyrics: showLyrics,
-      idleMode,
-      isAutoHidden,
-    });
+    const instant = (
+      mode === 'expanded' ||
+      mode === 'settings' ||
+      mode === 'hud' ||
+      !isAutoHidden         // sedang reveal dari hidden → window harus besar segera
+    );
+
+    if (instant) {
+      if (windowResizeTimerRef.current) clearTimeout(windowResizeTimerRef.current);
+      window.notchAPI?.updateWindowBounds({
+        mode,
+        tab: activeTab,
+        lyrics: showLyrics,
+        idleMode,
+        isAutoHidden,
+      });
+    } else {
+      // isAutoHidden === true: window mengecil ke 8px — tunda agar animasi hide selesai
+      if (windowResizeTimerRef.current) clearTimeout(windowResizeTimerRef.current);
+      windowResizeTimerRef.current = setTimeout(() => {
+        window.notchAPI?.updateWindowBounds({
+          mode,
+          tab: activeTab,
+          lyrics: showLyrics,
+          idleMode,
+          isAutoHidden,
+        });
+      }, 360);
+    }
+    return () => {
+      if (windowResizeTimerRef.current) clearTimeout(windowResizeTimerRef.current);
+    };
   }, [mode, activeTab, showLyrics, idleMode, isAutoHidden]);
 
   // ── On-Demand System Telemetry (Deep Sleep saat mode jam) ───────────────────
-  // HANYA jalankan polling CPU/RAM/Net saat user membuka tab System!
-  // Menghemat alokasi memori dan menekan konsumsi CPU hingga 0% saat idle jam.
+  // Jalankan polling CPU/RAM hanya saat expanded hub terbuka, hemat CPU saat idle.
   useEffect(() => {
-    if (mode === 'expanded' && activeTab === 'system') {
+    if (mode === 'expanded') {
       window.notchAPI?.startSystemMonitor();
     } else {
       window.notchAPI?.stopSystemMonitor();
@@ -233,7 +277,7 @@ export default function App() {
     return () => {
       window.notchAPI?.stopSystemMonitor();
     };
-  }, [mode, activeTab]);
+  }, [mode]);
 
   // ── HUD trigger (Auto-reveals notch even when auto-hidden) ──────────────────
   const triggerHUD = useCallback((ev) => {
@@ -324,15 +368,63 @@ export default function App() {
       });
     }
 
+    // ── Media: listen ke SMTC Rust event (via tauriBridge onMediaUpdate) ────
     const u1 = api.onMediaUpdate(d => {
       if (isSimMusic) return;
       if (d?.hasMedia) {
-        setMedia(m => ({ ...m, ...d }));
+        const isNewTrack = d.title && d.title !== prevTitleRef.current;
+        if (isNewTrack) {
+          prevTitleRef.current = d.title;
+          const pos = d.positionMs ? d.positionMs / 1000 : 0;
+          currentSecRef.current = pos;
+          lastWallClockRef.current = Date.now();
+          const dur = d.durationMs ? d.durationMs / 1000 : 240;
+          trackDurationRef.current = dur > 0 ? dur : 240;
+          setProgressSec(pos);
+          setProgress(dur > 0 ? Math.min(100, (pos / dur) * 100) : 0);
+        } else {
+          // Lagu yang sama: update durasi jika ada
+          if (d.durationMs && d.durationMs > 0) {
+            trackDurationRef.current = d.durationMs / 1000;
+          }
+          // Hanya resinkronisasi posisi jika ada indikasi seek nyata dari SMTC
+          if (d.isSeek && d.positionMs !== undefined && d.positionMs > 0) {
+            const reportedSec = d.positionMs / 1000;
+            currentSecRef.current = reportedSec;
+            lastWallClockRef.current = Date.now();
+            setProgressSec(reportedSec);
+            const dur = trackDurationRef.current;
+            setProgress(dur > 0 ? Math.min(100, (reportedSec / dur) * 100) : 0);
+          }
+        }
+
+        setMedia(m => {
+          if (m.status !== 'Playing' && d.status === 'Playing') {
+            lastWallClockRef.current = Date.now();
+          }
+          return { ...m, ...d };
+        });
+
+        // Auto-switch ke media mode jika ada lagu yang baru mulai
+        setMode(m => {
+          if (['idle', 'minimal', 'mascot'].includes(m)) return 'media';
+          return m;
+        });
       } else {
-        setMedia(m => ({ ...m, hasMedia:false, status:'Paused' }));
+        prevTitleRef.current = '';
+        currentSecRef.current = 0;
+        setMedia(m => ({ ...m, hasMedia: false, status: 'Paused' }));
+        setProgressSec(0);
+        setProgress(0);
+        // Kembali ke idle jika sudah tidak ada media
+        setMode(m => m === 'media' ? getFallbackMode() : m);
       }
     });
 
+    // ── Expose __openSettings ke Rust tray menu ───────────────────────────
+    window.__openSettings = () => setMode('settings');
+
+    // ── HUD trigger (volume changes dari Rust akan masuk sini) ────────────
     const u2 = api.onHUDTrigger(ev => triggerHUD(ev));
     const u3 = api.onFullscreenChange(v => setIsFullscreen(v));
     const u4 = api.onSystemMetrics(d => setSysMetrics(d));
@@ -340,7 +432,12 @@ export default function App() {
       triggerHUD({ type: 'capslock', capsLock: d?.active });
     });
 
-    return () => { u1?.(); u2?.(); u3?.(); u4?.(); u5?.(); };
+    return () => {
+      u1?.(); u2?.(); u3?.(); u4?.(); u5?.();
+      window.__openSettings = null;
+      api.stopVolumeMonitor?.();
+      api.stopMediaMonitor?.();
+    };
   }, [isSimMusic, getFallbackMode, triggerHUD]);
 
   // ── Keyboard global listeners (Escape to close, CapsLock HUD) ───────────────
@@ -382,7 +479,13 @@ export default function App() {
   // ── Media controls ─────────────────────────────────────────────────────────
   const togglePlay = () => {
     window.notchAPI?.sendMediaKey('playPause');
-    setMedia(m => ({ ...m, status: m.status === 'Playing' ? 'Paused' : 'Playing' }));
+    setMedia(m => {
+      const nextStatus = m.status === 'Playing' ? 'Paused' : 'Playing';
+      if (nextStatus === 'Playing') {
+        lastWallClockRef.current = Date.now();
+      }
+      return { ...m, status: nextStatus };
+    });
   };
   const mediaNext = () => window.notchAPI?.sendMediaKey('next');
   const mediaPrev = () => window.notchAPI?.sendMediaKey('prev');
@@ -391,12 +494,19 @@ export default function App() {
   const toggleSimMusic = () => {
     if (!isSimMusic) {
       setIsSimMusic(true);
+      prevTitleRef.current = "Starboy (feat. Daft Punk)";
+      trackDurationRef.current = 230; // 3:50
+      currentSecRef.current = 0;
+      lastWallClockRef.current = Date.now();
       setMedia({ hasMedia:true, title:"Starboy (feat. Daft Punk)", artist:"The Weeknd", album:"Starboy (Deluxe)", status:"Playing" });
       setProgressSec(0); setProgress(0);
       setMode('media');
     } else {
       setIsSimMusic(false);
+      prevTitleRef.current = '';
+      currentSecRef.current = 0;
       setMedia({ hasMedia:false, title:'', artist:'', album:'', status:'Paused' });
+      setProgressSec(0); setProgress(0);
       setMode(getFallbackMode());
     }
   };
@@ -418,35 +528,44 @@ export default function App() {
       clearTimeout(expandHoverTimerRef.current);
       expandHoverTimerRef.current = null;
     }
+    if (wakeTimerRef.current) {
+      clearTimeout(wakeTimerRef.current);
+      wakeTimerRef.current = null;
+    }
 
     if (isAutoHidden) {
-      // INTENTIONAL DWELL DELAY (120ms):
-      // Jangan langsung buka jika kursor hanya melintas sekilas di atas tab browser.
-      // Hanya bangunkan notch jika kursor benar-benar diam di tepi atas selama >120ms!
-      if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current);
-      wakeTimerRef.current = setTimeout(() => {
-        if (!isHoveredRef.current) return;
-        window.notchAPI?.setIgnoreMouseEvents(false);
-        setIsAutoHidden(false);
+      // Fase 1 — Tampilkan notch (slide-in dari atas)
+      // Resize window OS ke ukuran idle TERLEBIH DAHULU (sebelum CSS bergerak)
+      // agar clip area cukup besar sehingga spring animation tidak terpotong.
+      lastRevealTimeRef.current = Date.now();
+      window.notchAPI?.setIgnoreMouseEvents(false);
+      window.notchAPI?.updateWindowBounds({ mode: 'idle', isAutoHidden: false });
+      setIsAutoHidden(false);
+      setMode(getFallbackMode());
 
-        // Jika kursor terus bertahan di notch selama > 550ms setelah reveal:
-        expandHoverTimerRef.current = setTimeout(() => {
-          if (!isHoveredRef.current) return;
-          setMode(m => {
-            if (['idle', 'media', 'minimal', 'mascot'].includes(m)) {
-              setPrevMode(m);
-              return 'expanded';
-            }
-            return m;
-          });
-        }, 550);
-      }, 120);
+      // Fase 2 — Setelah jam selesai slide-in dan terlihat jelas → expand ke menu
+      // 680ms = 400ms spring + 200ms fade-in + 80ms buffer
+      expandHoverTimerRef.current = setTimeout(() => {
+        if (!isHoveredRef.current) return;
+        setMode(m => {
+          if (['idle', 'media', 'minimal', 'mascot'].includes(m)) {
+            setPrevMode(m);
+            return 'expanded';
+          }
+          return m;
+        });
+      }, 680);
+      return;
+    }
+
+    // Guard: abaikan hover sekunder selama animasi reveal masih berjalan (750ms)
+    if (Date.now() - lastRevealTimeRef.current < 750) {
       return;
     }
 
     window.notchAPI?.setIgnoreMouseEvents(false);
 
-    // Jika notch sudah terlihat: tunggu hover sengaja (320ms) sebelum expand
+    // Jika notch sudah terlihat: tunggu hover sengaja (280ms) sebelum expand
     if (mode !== 'settings' && mode !== 'hud' && mode !== 'expanded') {
       expandHoverTimerRef.current = setTimeout(() => {
         if (!isHoveredRef.current) return;
@@ -457,7 +576,7 @@ export default function App() {
           }
           return m;
         });
-      }, 320);
+      }, 280);
     }
   };
 
@@ -465,13 +584,11 @@ export default function App() {
     isHoveredRef.current = false;
     setIsHovered(false);
 
-    // Batalkan pending wake timer jika mouse hanya melintas sekilas
     if (wakeTimerRef.current) {
       clearTimeout(wakeTimerRef.current);
       wakeTimerRef.current = null;
     }
 
-    // 1. Batalkan pending expand jika kursor keluar sebelum delay tercapai
     if (expandHoverTimerRef.current) {
       clearTimeout(expandHoverTimerRef.current);
       expandHoverTimerRef.current = null;
@@ -480,31 +597,30 @@ export default function App() {
     // Jika dipin atau sedang di settings: jangan collapse
     if (isPinned || mode === 'settings') return;
 
-    // LANGSUNG aktifkan pass-through seketika agar klik di browser / aplikasi belakang tidak terhalang!
-    window.notchAPI?.setIgnoreMouseEvents(true, { forward: true });
-
     if (mode === 'expanded') {
       if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
       collapseTimerRef.current = setTimeout(() => {
         if (isHoveredRef.current) return;
+
+        // 1. Menunya hilang dulu, kembali kelihatan JAM!
         setMode(getFallbackMode());
 
+        // 2. Setelah jam terlihat sebentar, baru hide lagi!
         if (settings.autoHideMode) {
           if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
           autoHideTimerRef.current = setTimeout(() => {
             if (isHoveredRef.current) return;
             setIsAutoHidden(true);
-          }, 1500);
+          }, 1100);
         }
-      }, 750);
+      }, 180);
     } else {
-      // Di idle / media / mascot:
       if (settings.autoHideMode) {
         if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
         autoHideTimerRef.current = setTimeout(() => {
           if (isHoveredRef.current) return;
           setIsAutoHidden(true);
-        }, 1500);
+        }, 1100);
       }
     }
   };
@@ -521,12 +637,13 @@ export default function App() {
     if (mode === 'settings') return 'expanded-h-settings';
     if (mode === 'expanded') {
       switch (activeTab) {
-        case 'music':  return showLyrics ? 'expanded-h-music-lyrics' : 'expanded-h-music';
-        case 'produk': return 'expanded-h-focus';
-        case 'prayer': return 'expanded-h-prayer';
-        case 'system': return 'expanded-h-system';
-        case 'shelf':  return 'expanded-h-shelf';
-        default:       return 'expanded-h-music';
+        case 'music':   return showLyrics ? 'expanded-h-music-lyrics' : 'expanded-h-music';
+        case 'produk':  return 'expanded-h-focus';
+        case 'prayer':  return 'expanded-h-prayer';
+        case 'weather':  return 'expanded-h-weather';
+        case 'calendar': return 'expanded-h-calendar';
+        case 'shelf':    return 'expanded-h-shelf';
+        default:        return 'expanded-h-music';
       }
     }
     return '';
@@ -597,16 +714,19 @@ export default function App() {
           </div>
         </div>
       );
-      case 'prayer': return <PrayerTimes chimeEnabled={settings.chimeEnabled}/>;
-      case 'system': return <SystemMonitor metrics={sysMetrics}/>;
-      case 'shelf':  return <FileShelf files={data.shelfFiles} onSave={f => updateData({ shelfFiles:f })}/>;
-      default:       return null;
+      case 'prayer':   return <PrayerTimes chimeEnabled={settings.chimeEnabled}/>;
+      case 'weather':  return <WeatherWidget />;
+      case 'calendar': return <CalendarWidget />;
+      case 'shelf':    return <FileShelf files={data.shelfFiles} onSave={f => updateData({ shelfFiles:f })}/>;
+      default:        return null;
     }
   };
 
   return (
     <div
       className="notch-wrapper"
+      data-theme={settings.theme || 'midnight'}
+      data-surface={settings.surfaceStyle || 'glass'}
       onClick={() => {
         if (['expanded', 'settings'].includes(mode)) closeExpanded();
       }}
@@ -617,15 +737,23 @@ export default function App() {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Trigger zone dengan garis indikator penanda posisi notch saat tersembunyi */}
-        {isAutoHidden && (
-          <div className="notch-trigger-zone" title="Arahkan kursor ke sini untuk membuka notch">
-            <div className="notch-indicator-bar" />
-          </div>
-        )}
-
-        {/* ── The Glassmorphism Notch Island ── */}
+        {/* Trigger zone penanda posisi notch saat tersembunyi (selalu ada di DOM agar bebas glitch) */}
         <div
+          className="notch-trigger-zone"
+          title="Arahkan kursor ke sini untuk membuka notch"
+          style={{
+            opacity: isAutoHidden ? 1 : 0,
+            pointerEvents: isAutoHidden ? 'auto' : 'none',
+            transition: 'opacity 0.2s ease',
+          }}
+        >
+          <div className="notch-indicator-bar" />
+        </div>
+
+        {/* ── The Notch Island (Glass or Solid) ── */}
+        <div
+          data-theme={settings.theme || 'midnight'}
+          data-surface={settings.surfaceStyle || 'glass'}
           className={`notch-island ${stateClass()} ${isAutoHidden ? 'is-autohidden' : ''} ${isFullscreenHidden ? 'is-fullscreen-hidden' : ''} ${isCharging && !isFullscreenHidden ? 'charging-glow' : ''}`}
           onClick={(e) => {
             if (['idle', 'media', 'minimal', 'mascot'].includes(mode)) {
@@ -636,7 +764,7 @@ export default function App() {
             }
           }}
         >
-        <div key={`${mode}-${activeTab}-${showLyrics}`} className="notch-content-fade">
+        <div className="notch-content-fade">
           {/* ── Idle / Compact Pill (Clock & Mini Player) ── */}
           {(mode === 'idle' || mode === 'media') && (
             <IdlePill
@@ -676,9 +804,13 @@ export default function App() {
                 batteryLevel={batteryLevel} isCharging={isCharging}
                 onOpenSettings={() => { setPrevMode('expanded'); setMode('settings'); }}
                 progress={progress} progressSec={progressSec}
+                trackDuration={trackDurationRef.current}
                 onSeek={sec => {
+                  const dur = trackDurationRef.current;
+                  currentSecRef.current = sec;
+                  lastWallClockRef.current = Date.now();
                   setProgressSec(sec);
-                  setProgress(Math.min(100, (sec / 240) * 100));
+                  setProgress(dur > 0 ? Math.min(100, (sec / dur) * 100) : 0);
                 }}
                 volume={volume}
                 onChangeVolume={handleVolumeChange}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Check, Power, Volume2, Music, Monitor, Pin, Bell, BellOff, LogIn, Eye, EyeOff, Settings } from 'lucide-react';
+import { X, Check, Power, Volume2, Music, Monitor, Pin, Bell, BellOff, LogIn, Eye, EyeOff, Settings, Sparkles, Square } from 'lucide-react';
 
 const Toggle = ({ label, icon: Icon, iconColor, checked, onClick }) => (
   <div onClick={onClick}
@@ -68,6 +68,76 @@ export default function SettingsPanel({
                        border: settings.autoHideMode ? '1px solid rgba(100,210,255,.4)' : '1px solid transparent',
                        transition:'all .18s' }}>
               <EyeOff size={11}/> Auto-Hide
+            </button>
+          </div>
+        </div>
+
+        {/* Pilihan Tema Warna */}
+        <div>
+          <div style={{ fontSize:9.5, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:.6, marginBottom:5 }}>
+            Tema Warna Notch
+          </div>
+          <div style={{ display:'flex', gap:6 }}>
+            <button
+              onClick={() => onUpdate({ theme: 'midnight' })}
+              style={{
+                flex: 1, padding: '7px 8px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 9.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6,
+                background: (settings.theme || 'midnight') === 'midnight' ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.04)',
+                color: (settings.theme || 'midnight') === 'midnight' ? '#fff' : 'var(--text-2)',
+                border: (settings.theme || 'midnight') === 'midnight' ? '1px solid rgba(255,255,255,.3)' : '1px solid transparent',
+                transition: 'all .18s'
+              }}>
+              <div style={{ width: 12, height: 12, borderRadius: 50, background: '#050505', border: '1px solid rgba(255,255,255,.4)', flexShrink: 0 }} />
+              <span>Midnight (Black)</span>
+            </button>
+            <button
+              onClick={() => onUpdate({ theme: 'graphite' })}
+              style={{
+                flex: 1, padding: '7px 8px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 9.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6,
+                background: settings.theme === 'graphite' ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.04)',
+                color: settings.theme === 'graphite' ? '#fff' : 'var(--text-2)',
+                border: settings.theme === 'graphite' ? '1px solid rgba(255,255,255,.3)' : '1px solid transparent',
+                transition: 'all .18s'
+              }}>
+              <div style={{ width: 12, height: 12, borderRadius: 50, background: '#2d2d2d', border: '1px solid rgba(255,255,255,.4)', flexShrink: 0 }} />
+              <span>Dark (#2d2d2d)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Gaya Tampilan Material: Glass vs Solid */}
+        <div>
+          <div style={{ fontSize:9.5, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:.6, marginBottom:5 }}>
+            Gaya Tampilan (Glass / Solid)
+          </div>
+          <div style={{ display:'flex', gap:6 }}>
+            <button
+              onClick={() => onUpdate({ surfaceStyle: 'glass' })}
+              style={{
+                flex: 1, padding: '7px 8px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 9.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                background: (settings.surfaceStyle || 'glass') === 'glass' ? 'rgba(100,210,255,.18)' : 'rgba(255,255,255,.04)',
+                color: (settings.surfaceStyle || 'glass') === 'glass' ? 'var(--cyan)' : 'var(--text-2)',
+                border: (settings.surfaceStyle || 'glass') === 'glass' ? '1px solid rgba(100,210,255,.4)' : '1px solid transparent',
+                transition: 'all .18s'
+              }}>
+              <Sparkles size={11} />
+              <span>Glass (Transparan Blur)</span>
+            </button>
+            <button
+              onClick={() => onUpdate({ surfaceStyle: 'solid' })}
+              style={{
+                flex: 1, padding: '7px 8px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 9.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                background: settings.surfaceStyle === 'solid' ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.04)',
+                color: settings.surfaceStyle === 'solid' ? '#fff' : 'var(--text-2)',
+                border: settings.surfaceStyle === 'solid' ? '1px solid rgba(255,255,255,.4)' : '1px solid transparent',
+                transition: 'all .18s'
+              }}>
+              <Square size={11} />
+              <span>Solid (Pekat)</span>
             </button>
           </div>
         </div>
