@@ -57,7 +57,7 @@ export default function ExpandedHub({
     { id: 'calendar', label: 'Kalender', icon: Calendar },
     { id: 'shelf',    label: 'Shelf',    icon: Folder   },
   ];
-
+  
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', gap: 4 }}>
       {/* ── Top Nav: Tabs + Controls ── */}
