@@ -1,35 +1,35 @@
 {
-  "name": "snotch",
-  "version": "1.0.0",
-  "description": "SNOTCH - Dynamic Notch for Windows",
-  "scripts": {
-    "dev": "node scripts/build_tauri.cjs --dev",
-    "dev:tauri": "node scripts/build_tauri.cjs --dev",
-    "dev:vite": "vite",
-    "build": "vite build",
-    "build:app": "node scripts/build_tauri.cjs",
-    "build:tauri": "node scripts/build_tauri.cjs",
-    "tauri": "tauri"
-  },
-  "keywords": [
-    "tauri",
-    "notch",
-    "windows",
-    "dynamic-island",
-    "react"
-  ],
-  "author": "Ihsan",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "@tauri-apps/api": "^2.12.4",
-    "lucide-react": "^1.61.0",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
-  },
-  "devDependencies": {
-    "@tauri-apps/cli": "^2.12.4",
-    "@vitejs/plugin-react": "^6.1.2",
-    "vite": "^8.3.5"
-  }
+   "name": "snotch",
+   "version": "1.0.1",
+   "description": "SNOTCH - Dynamic Notch for Windows",
+   "scripts": {
+      "dev": "node scripts/build_tauri.cjs --dev",
+      "dev:tauri": "node scripts/build_tauri.cjs --dev",
+      "dev:vite": "vite",
+      "build": "vite build",
+      "build:app": "node scripts/build_tauri.cjs",
+      "build:tauri": "node scripts/build_tauri.cjs",
+      "tauri": "tauri"
+   },
+   "keywords": [
+      "tauri",
+      "notch",
+      "windows",
+      "dynamic-island",
+      "react"
+   ],
+   "author": "Ihsan",
+   "license": "ISC",
+   "type": "commonjs",
+   "dependencies": {
+      "@tauri-apps/api": "^2.12.4",
+      "lucide-react": "^1.61.0",
+      "react": "^19.3.1",
+      "react-dom": "^19.3.1"
+   },
+   "devDependencies": {
+      "@tauri-apps/cli": "^2.12.4",
+      "@vitejs/plugin-react": "^6.1.2",
+      "vite": "^8.3.5"
+   }
 }

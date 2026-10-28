@@ -193,6 +193,29 @@ export default function App() {
   const currentSecRef     = useRef(0);   // current precise position in seconds (float)
   const lastWallClockRef  = useRef(Date.now()); // timestamp when currentSecRef was last ticked
   const prevTitleRef      = useRef('');  // detect track changes
+  const isSeekingRef      = useRef(false);
+  const seekTimerRef      = useRef(null);
+
+  const handleSeek = useCallback((sec) => {
+    const dur = trackDurationRef.current;
+    const clampedSec = Math.max(0, Math.min(dur, sec));
+    currentSecRef.current = clampedSec;
+    lastWallClockRef.current = Date.now();
+    setProgressSec(clampedSec);
+    setProgress(dur > 0 ? Math.min(100, (clampedSec / dur) * 100) : 0);
+
+    // Call native SMTC seek
+    if (!isSimMusic && window.notchAPI?.seekMedia) {
+      window.notchAPI.seekMedia(clampedSec * 1000);
+    }
+
+    // Suppress incoming polling briefly so player has time to process seek
+    isSeekingRef.current = true;
+    if (seekTimerRef.current) clearTimeout(seekTimerRef.current);
+    seekTimerRef.current = setTimeout(() => {
+      isSeekingRef.current = false;
+    }, 700);
+  }, [isSimMusic]);
 
   useEffect(() => {
     if (media.status === 'Playing') {
@@ -373,29 +396,30 @@ export default function App() {
       if (isSimMusic) return;
       if (d?.hasMedia) {
         const isNewTrack = d.title && d.title !== prevTitleRef.current;
+        const reportedSec = Math.max(0, (d.positionMs || 0) / 1000);
+        const dur = (d.durationMs && d.durationMs > 0) ? (d.durationMs / 1000) : trackDurationRef.current;
+        trackDurationRef.current = dur > 0 ? dur : 240;
+
         if (isNewTrack) {
           prevTitleRef.current = d.title;
-          const pos = d.positionMs ? d.positionMs / 1000 : 0;
-          currentSecRef.current = pos;
+          currentSecRef.current = reportedSec;
           lastWallClockRef.current = Date.now();
-          const dur = d.durationMs ? d.durationMs / 1000 : 240;
-          trackDurationRef.current = dur > 0 ? dur : 240;
-          setProgressSec(pos);
-          setProgress(dur > 0 ? Math.min(100, (pos / dur) * 100) : 0);
-        } else {
-          // Lagu yang sama: update durasi jika ada
-          if (d.durationMs && d.durationMs > 0) {
-            trackDurationRef.current = d.durationMs / 1000;
-          }
-          // Hanya resinkronisasi posisi jika ada indikasi seek nyata dari SMTC
-          if (d.isSeek && d.positionMs !== undefined && d.positionMs > 0) {
-            const reportedSec = d.positionMs / 1000;
-            currentSecRef.current = reportedSec;
-            lastWallClockRef.current = Date.now();
-            setProgressSec(reportedSec);
-            const dur = trackDurationRef.current;
-            setProgress(dur > 0 ? Math.min(100, (reportedSec / dur) * 100) : 0);
-          }
+          setProgressSec(reportedSec);
+          setProgress(dur > 0 ? Math.min(100, (reportedSec / dur) * 100) : 0);
+        } else if (!isSeekingRef.current) {
+          // If status changed or seek flag is true or accumulated drift > 1.2s:
+          setMedia(prevM => {
+            const statusChanged = prevM.status !== d.status;
+            const drift = Math.abs(reportedSec - currentSecRef.current);
+
+            if (d.isSeek || statusChanged || drift > 1.2) {
+              currentSecRef.current = reportedSec;
+              lastWallClockRef.current = Date.now();
+              setProgressSec(reportedSec);
+              setProgress(dur > 0 ? Math.min(100, (reportedSec / dur) * 100) : 0);
+            }
+            return prevM;
+          });
         }
 
         setMedia(m => {
@@ -805,13 +829,7 @@ export default function App() {
                 onOpenSettings={() => { setPrevMode('expanded'); setMode('settings'); }}
                 progress={progress} progressSec={progressSec}
                 trackDuration={trackDurationRef.current}
-                onSeek={sec => {
-                  const dur = trackDurationRef.current;
-                  currentSecRef.current = sec;
-                  lastWallClockRef.current = Date.now();
-                  setProgressSec(sec);
-                  setProgress(dur > 0 ? Math.min(100, (sec / dur) * 100) : 0);
-                }}
+                onSeek={handleSeek}
                 volume={volume}
                 onChangeVolume={handleVolumeChange}
                 showLyrics={showLyrics}

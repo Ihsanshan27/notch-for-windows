@@ -62,9 +62,9 @@ fn get_master_volume_windows() -> Option<(f32, bool)> {
 #[cfg(not(target_os = "windows"))]
 fn get_master_volume_windows() -> Option<(f32, bool)> { None }
 
-// ── Helper: get current media session info via SMTC ─────────────────────────
+// ── Helper: get active SMTC session ──────────────────────────────────────────
 #[cfg(target_os = "windows")]
-fn get_smtc_media() -> Option<serde_json::Value> {
+fn get_active_media_session() -> Option<GlobalSystemMediaTransportControlsSession> {
     unsafe {
         let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
     }
@@ -72,17 +72,15 @@ fn get_smtc_media() -> Option<serde_json::Value> {
     let mgr = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
         .ok()?.get().ok()?;
 
-    // Try current session first, fallback to first Playing session
-    let session = if let Ok(s) = mgr.GetCurrentSession() {
-        s
+    if let Ok(s) = mgr.GetCurrentSession() {
+        Some(s)
     } else if let Ok(sessions) = mgr.GetSessions() {
         let mut target: Option<GlobalSystemMediaTransportControlsSession> = None;
         for s in sessions {
             if let Ok(info) = s.GetPlaybackInfo() {
                 if let Ok(st) = info.PlaybackStatus() {
                     if st == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing {
-                        target = Some(s);
-                        break;
+                        return Some(s);
                     }
                 }
             }
@@ -90,10 +88,16 @@ fn get_smtc_media() -> Option<serde_json::Value> {
                 target = Some(s);
             }
         }
-        target?
+        target
     } else {
-        return None;
-    };
+        None
+    }
+}
+
+// ── Helper: get current media session info via SMTC ─────────────────────────
+#[cfg(target_os = "windows")]
+fn get_smtc_media() -> Option<serde_json::Value> {
+    let session = get_active_media_session()?;
 
     // Playback status
     let playback_info = session.GetPlaybackInfo().ok()?;
@@ -111,9 +115,40 @@ fn get_smtc_media() -> Option<serde_json::Value> {
 
     // Timeline: position + duration in ms (Windows stores as 100-ns units)
     let (position_ms, duration_ms) = if let Ok(tl) = session.GetTimelineProperties() {
-        let pos = tl.Position().map(|d| d.Duration / 10_000).unwrap_or(0);
+        let raw_pos = tl.Position().map(|d| d.Duration / 10_000).unwrap_or(0);
         let dur = tl.EndTime().map(|d| d.Duration / 10_000).unwrap_or(0);
-        (pos, dur)
+
+        // Accurate real-time position using LastUpdatedTime
+        let calculated_pos = if is_playing {
+            if let Ok(last_updated) = tl.LastUpdatedTime() {
+                let last_updated_100ns = last_updated.UniversalTime;
+                if last_updated_100ns > 0 {
+                    let now_100ns = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_nanos() as i64 / 100 + 116_444_736_000_000_000i64)
+                        .unwrap_or(0);
+                    let elapsed_100ns = now_100ns - last_updated_100ns;
+                    if elapsed_100ns >= 0 && elapsed_100ns < 7_200_000_000_000 {
+                        let elapsed_ms = elapsed_100ns / 10_000;
+                        if dur > 0 {
+                            (raw_pos + elapsed_ms).min(dur)
+                        } else {
+                            raw_pos + elapsed_ms
+                        }
+                    } else {
+                        raw_pos
+                    }
+                } else {
+                    raw_pos
+                }
+            } else {
+                raw_pos
+            }
+        } else {
+            raw_pos
+        };
+
+        (calculated_pos, dur)
     } else {
         (0i64, 0i64)
     };
@@ -141,15 +176,6 @@ fn start_hardware_watcher(app_handle: AppHandle) {
         let mut was_caps_down = false;
         let mut last_vol: Option<(i32, bool)> = None;
         let mut loop_count: u32 = 0;
-
-        let mut last_title = String::new();
-        let mut last_artist = String::new();
-        let mut last_status = String::new();
-        let mut last_has_media = false;
-        let mut last_pos_ms = 0i64;
-        let mut last_emit_instant = Instant::now();
-
-        let mut prev_raw_pos_ms = 0i64;
 
         loop {
             // ── 1. CapsLock detection (every 30ms) ──────────────────────
@@ -190,60 +216,6 @@ fn start_hardware_watcher(app_handle: AppHandle) {
                         }
                     }
                     last_vol = Some((rounded, muted));
-                }
-            }
-
-            // ── 3. Media session detection (every ~600ms = 20 * 30ms) ───
-            if loop_count >= 20 {
-                loop_count = 0;
-                let maybe_info = get_smtc_media();
-                let has_media = maybe_info.is_some();
-                let mut payload = if let Some(ref info) = maybe_info {
-                    info.clone()
-                } else {
-                    serde_json::json!({
-                        "hasMedia": false,
-                        "title": "",
-                        "artist": "",
-                        "album": "",
-                        "status": "Paused",
-                        "positionMs": 0,
-                        "durationMs": 0
-                    })
-                };
-
-                let title = payload.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                let artist = payload.get("artist").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                let status = payload.get("status").and_then(|v| v.as_str()).unwrap_or("Paused").to_string();
-                let cur_pos_ms = payload.get("positionMs").and_then(|v| v.as_i64()).unwrap_or(0);
-
-                let state_changed = title != last_title
-                    || artist != last_artist
-                    || status != last_status
-                    || has_media != last_has_media;
-
-                // Seek detected: only if raw SMTC position actually shifted substantially from previous reading
-                let seek_detected = if !state_changed && status == "Playing" && cur_pos_ms > 0 && prev_raw_pos_ms > 0 {
-                    let elapsed = last_emit_instant.elapsed().as_millis() as i64;
-                    let expected = last_pos_ms + elapsed;
-                    cur_pos_ms != prev_raw_pos_ms && (cur_pos_ms - expected).abs() > 3000
-                } else {
-                    false
-                };
-
-                prev_raw_pos_ms = cur_pos_ms;
-
-                if state_changed || seek_detected {
-                    last_title = title;
-                    last_artist = artist;
-                    last_status = status;
-                    last_has_media = has_media;
-                    last_pos_ms = cur_pos_ms;
-                    last_emit_instant = Instant::now();
-                    if let Some(obj) = payload.as_object_mut() {
-                        obj.insert("isSeek".to_string(), serde_json::json!(seek_detected));
-                    }
-                    let _ = app_handle.emit("media-update", payload);
                 }
             }
 
@@ -320,22 +292,53 @@ fn update_window_bounds(
     }
 }
 
+#[tauri::command]
+fn seek_media(position_ms: i64) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(session) = get_active_media_session() {
+            let ticks = position_ms.max(0) * 10_000;
+            if let Ok(op) = session.TryChangePlaybackPositionAsync(ticks) {
+                if let Ok(success) = op.get() {
+                    return success;
+                }
+            }
+        }
+    }
+    false
+}
+
 // Single-shot system metrics snapshot
 #[tauri::command]
 fn send_media_key(key: String) {
     #[cfg(target_os = "windows")]
-    unsafe {
-        let vk: u8 = match key.as_str() {
-            "playPause"  => 0xB3,
-            "next"       => 0xB0,
-            "prev"       => 0xB1,
-            "volumeUp"   => 0xAF,
-            "volumeDown" => 0xAE,
-            "mute"       => 0xAD,
-            _            => 0xB3,
+    {
+        let handled = if let Some(session) = get_active_media_session() {
+            match key.as_str() {
+                "playPause" => session.TryTogglePlayPauseAsync().ok().and_then(|op| op.get().ok()).unwrap_or(false),
+                "next"      => session.TrySkipNextAsync().ok().and_then(|op| op.get().ok()).unwrap_or(false),
+                "prev"      => session.TrySkipPreviousAsync().ok().and_then(|op| op.get().ok()).unwrap_or(false),
+                _           => false,
+            }
+        } else {
+            false
         };
-        keybd_event(vk, 0, 0, 0);
-        keybd_event(vk, 0, 2, 0);
+
+        if !handled {
+            unsafe {
+                let vk: u8 = match key.as_str() {
+                    "playPause"  => 0xB3,
+                    "next"       => 0xB0,
+                    "prev"       => 0xB1,
+                    "volumeUp"   => 0xAF,
+                    "volumeDown" => 0xAE,
+                    "mute"       => 0xAD,
+                    _            => 0xB3,
+                };
+                keybd_event(vk, 0, 0, 0);
+                keybd_event(vk, 0, 2, 0);
+            }
+        }
     }
 }
 
@@ -449,26 +452,73 @@ fn start_media_monitor(
 
     thread::spawn(move || {
         let mut last_title = String::new();
+        let mut last_artist = String::new();
+        let mut last_status = String::new();
+        let mut last_has_media = false;
+        let mut last_pos_ms = 0i64;
+        let mut last_emit_instant = Instant::now();
+
         loop {
             {
                 let st = state_clone.lock().unwrap();
                 if !st.running { break; }
             }
 
-            let payload = if let Some(info) = get_smtc_media() {
-                // Only emit if something changed
-                let title = info["title"].as_str().unwrap_or("").to_string();
-                if title != last_title {
-                    last_title = title;
-                }
-                info
+            let maybe_info = get_smtc_media();
+            let has_media = maybe_info.is_some();
+            let mut payload = if let Some(ref info) = maybe_info {
+                info.clone()
             } else {
-                last_title.clear();
-                serde_json::json!({ "hasMedia": false, "title": "", "artist": "", "album": "", "status": "Paused" })
+                serde_json::json!({
+                    "hasMedia": false,
+                    "title": "",
+                    "artist": "",
+                    "album": "",
+                    "status": "Paused",
+                    "positionMs": 0,
+                    "durationMs": 0
+                })
             };
 
-            let _ = app2.emit("media-update", payload);
-            thread::sleep(Duration::from_secs(1));
+            let title = payload.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let artist = payload.get("artist").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let status = payload.get("status").and_then(|v| v.as_str()).unwrap_or("Paused").to_string();
+            let cur_pos_ms = payload.get("positionMs").and_then(|v| v.as_i64()).unwrap_or(0);
+
+            let state_changed = title != last_title
+                || artist != last_artist
+                || status != last_status
+                || has_media != last_has_media;
+
+            let elapsed = last_emit_instant.elapsed().as_millis() as i64;
+            let seek_detected = if !state_changed && has_media {
+                if status == "Playing" {
+                    let expected = last_pos_ms + elapsed;
+                    (cur_pos_ms - expected).abs() > 1500
+                } else {
+                    (cur_pos_ms - last_pos_ms).abs() > 500
+                }
+            } else {
+                false
+            };
+
+            let heartbeat = has_media && status == "Playing" && elapsed >= 2000;
+
+            if state_changed || seek_detected || heartbeat {
+                last_title = title;
+                last_artist = artist;
+                last_status = status;
+                last_has_media = has_media;
+                last_pos_ms = cur_pos_ms;
+                last_emit_instant = Instant::now();
+
+                if let Some(obj) = payload.as_object_mut() {
+                    obj.insert("isSeek".to_string(), serde_json::json!(seek_detected));
+                }
+                let _ = app2.emit("media-update", payload);
+            }
+
+            thread::sleep(Duration::from_millis(300));
         }
     });
 }
@@ -521,6 +571,7 @@ pub fn run() {
             start_media_monitor,
             stop_media_monitor,
             send_media_key,
+            seek_media,
             run_quick_action,
         ])
         .setup(|app| {
