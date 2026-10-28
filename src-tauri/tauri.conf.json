@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Windows Dynamic Notch",
+  "productName": "SNOTCH",
   "version": "1.0.0",
-  "identifier": "com.ihsanshan.notchforwindows",
+  "identifier": "com.ihsanshan.snotch",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Windows Dynamic Notch",
+        "title": "SNOTCH",
         "label": "main",
         "width": 280,
         "height": 48,

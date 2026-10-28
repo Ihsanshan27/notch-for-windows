@@ -1,7 +1,7 @@
 {
-  "name": "notch-for-windows",
+  "name": "snotch",
   "version": "1.0.0",
-  "description": "Windows Dynamic Notch - Native Tauri App",
+  "description": "SNOTCH - Dynamic Notch for Windows",
   "scripts": {
     "dev": "node scripts/build_tauri.cjs --dev",
     "dev:tauri": "node scripts/build_tauri.cjs --dev",
