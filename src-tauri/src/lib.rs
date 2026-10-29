@@ -172,25 +172,18 @@ fn get_smtc_media() -> Option<serde_json::Value> { None }
 #[cfg(target_os = "windows")]
 fn start_hardware_watcher(app_handle: AppHandle) {
     thread::spawn(move || {
-        let mut is_caps = unsafe { (GetKeyState(0x14) & 1) != 0 };
         let mut was_caps_down = false;
         let mut last_vol: Option<(i32, bool)> = None;
         let mut loop_count: u32 = 0;
 
         loop {
-            // ── 1. CapsLock detection (every 30ms) ──────────────────────
+            // ── 1. CapsLock detection: only trigger when key is physically pressed ─
             let key_down = unsafe { (GetAsyncKeyState(0x14) as u16 & 0x8000) != 0 };
-            let os_caps  = unsafe { (GetKeyState(0x14) & 1) != 0 };
 
             if key_down && !was_caps_down {
-                // Key pressed: wait briefly for OS toggle bit update
-                thread::sleep(Duration::from_millis(15));
-                let new_caps = unsafe { (GetKeyState(0x14) & 1) != 0 };
-                is_caps = new_caps;
-                let _ = app_handle.emit("capslock-change", serde_json::json!({ "active": is_caps }));
-                let _ = app_handle.emit("hud-trigger", serde_json::json!({ "type": "capslock", "capsLock": is_caps }));
-            } else if os_caps != is_caps {
-                is_caps = os_caps;
+                // Key physically pressed by user: wait briefly for OS toggle bit update
+                thread::sleep(Duration::from_millis(25));
+                let is_caps = unsafe { (GetKeyState(0x14) & 1) != 0 };
                 let _ = app_handle.emit("capslock-change", serde_json::json!({ "active": is_caps }));
                 let _ = app_handle.emit("hud-trigger", serde_json::json!({ "type": "capslock", "capsLock": is_caps }));
             }
@@ -199,15 +192,30 @@ fn start_hardware_watcher(app_handle: AppHandle) {
             // ── 2. Volume detection (every ~180ms = 6 * 30ms) ───────────
             loop_count += 1;
             if loop_count % 6 == 0 {
+                let vol_key_pressed = unsafe {
+                    ((GetAsyncKeyState(0xAF) as u16 & 0x8000) != 0) // VK_VOLUME_UP
+                        || ((GetAsyncKeyState(0xAE) as u16 & 0x8000) != 0) // VK_VOLUME_DOWN
+                        || ((GetAsyncKeyState(0xAD) as u16 & 0x8000) != 0) // VK_VOLUME_MUTE
+                };
+
                 if let Some((lvl, muted)) = get_master_volume_windows() {
                     let rounded = lvl.round() as i32;
                     if let Some((prev_lvl, prev_mute)) = last_vol {
-                        if prev_lvl != rounded || prev_mute != muted {
+                        let diff = (prev_lvl - rounded).abs();
+                        let mute_changed = prev_mute != muted;
+
+                        // Emit volume-update for any change to keep sliders in sync
+                        if diff >= 1 || mute_changed {
                             let _ = app_handle.emit("volume-update", serde_json::json!({
                                 "type": "volume",
                                 "level": lvl,
                                 "isMuted": muted,
                             }));
+                        }
+
+                        // Only trigger visual HUD if key was pressed, mute changed, or change >= 2%
+                        // (Ignores background notification ducking and 1% jitter)
+                        if vol_key_pressed || mute_changed || diff >= 2 {
                             let _ = app_handle.emit("hud-trigger", serde_json::json!({
                                 "type": "volume",
                                 "level": rounded,
