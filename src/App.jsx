@@ -448,16 +448,13 @@ export default function App() {
     // ── Expose __openSettings ke Rust tray menu ───────────────────────────
     window.__openSettings = () => setMode('settings');
 
-    // ── HUD trigger (volume changes dari Rust akan masuk sini) ────────────
+    // ── HUD trigger (volume & capslock changes dari Rust) ─────────────────
     const u2 = api.onHUDTrigger(ev => triggerHUD(ev));
     const u3 = api.onFullscreenChange(v => setIsFullscreen(v));
     const u4 = api.onSystemMetrics(d => setSysMetrics(d));
-    const u5 = api.onCapslockChange?.(d => {
-      triggerHUD({ type: 'capslock', capsLock: d?.active });
-    });
 
     return () => {
-      u1?.(); u2?.(); u3?.(); u4?.(); u5?.();
+      u1?.(); u2?.(); u3?.(); u4?.();
       window.__openSettings = null;
       api.stopVolumeMonitor?.();
       api.stopMediaMonitor?.();
